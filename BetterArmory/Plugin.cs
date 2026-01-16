@@ -4,9 +4,10 @@ using Dalamud.Plugin;
 using System.IO;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
-using SamplePlugin.Windows;
+using BetterArmory.Windows;
+using BetterArmory.Services;
 
-namespace SamplePlugin;
+namespace BetterArmory;
 
 public sealed class Plugin : IDalamudPlugin
 {
@@ -22,9 +23,11 @@ public sealed class Plugin : IDalamudPlugin
 
     public Configuration Configuration { get; init; }
 
-    public readonly WindowSystem WindowSystem = new("SamplePlugin");
+    public readonly WindowSystem WindowSystem = new("BetterArmory");
     private ConfigWindow ConfigWindow { get; init; }
-    private MainWindow MainWindow { get; init; }
+    private ArmoryWindow ArmoryWindow { get; init; }
+    private ArmoryViewModel ArmoryViewModel { get; init; }
+    private IArmoryService ArmoryService { get; init; }
 
     public Plugin()
     {
@@ -34,14 +37,20 @@ public sealed class Plugin : IDalamudPlugin
         var goatImagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
 
         ConfigWindow = new ConfigWindow(this);
-        MainWindow = new MainWindow(this, goatImagePath);
+        // Initialize service and window
+        ArmoryService = new MockArmoryService();
+        ArmoryViewModel = new ArmoryViewModel(ArmoryService);
+        ArmoryWindow = new ArmoryWindow(ArmoryViewModel);
+
+        // Initial data load
+        ArmoryViewModel.Refresh();
 
         WindowSystem.AddWindow(ConfigWindow);
-        WindowSystem.AddWindow(MainWindow);
+        WindowSystem.AddWindow(ArmoryWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "A useful message to display in /xlhelp"
+            HelpMessage = "Opens the BetterArmory chest window"
         });
 
         // Tell the UI system that we want our windows to be drawn through the window system
@@ -56,7 +65,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Add a simple message to the log with level set to information
         // Use /xllog to open the log window in-game
-        // Example Output: 00:57:54.959 | INF | [SamplePlugin] ===A cool log message from Sample Plugin===
+        // Example Output: 00:57:54.959 | INF | [BetterArmory] ===A cool log message from Sample Plugin===
         Log.Information($"===A cool log message from {PluginInterface.Manifest.Name}===");
     }
 
@@ -70,7 +79,7 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.RemoveAllWindows();
 
         ConfigWindow.Dispose();
-        MainWindow.Dispose();
+        ArmoryWindow.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
     }
@@ -78,9 +87,9 @@ public sealed class Plugin : IDalamudPlugin
     private void OnCommand(string command, string args)
     {
         // In response to the slash command, toggle the display status of our main ui
-        MainWindow.Toggle();
+        ArmoryWindow.Toggle();
     }
     
     public void ToggleConfigUi() => ConfigWindow.Toggle();
-    public void ToggleMainUi() => MainWindow.Toggle();
+    public void ToggleMainUi() => ArmoryWindow.Toggle();
 }
